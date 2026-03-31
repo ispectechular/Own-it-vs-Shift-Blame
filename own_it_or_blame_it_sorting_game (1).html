@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Own It or Blame It</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg1:#07070f;
+      --bg2:#0a0618;
+      --panel:#12142aee;
+      --panel2:#1b1f3fdd;
+      --cyan:#00e5ff;
+      --pink:#ff2d78;
+      --green:#aaff00;
+      --orange:#ff9500;
+      --purple:#cc44ff;
+      --yellow:#ffe94d;
+      --white:#f7fbff;
+      --soft:#cbd5ff;
+      --bad:#ff2d78;
+      --good:#aaff00;
+      --shadow:0 0 18px rgba(0,229,255,.35),0 0 34px rgba(0,229,255,.15);
+      --radius:24px;
+      --hudH:76px;
+    }
+
+    *{box-sizing:border-box;}
+    html,body{height:100%;margin:0;overflow:hidden;}
+    body{
+      font-family:'Fredoka', system-ui, sans-serif;
+      background:linear-gradient(135deg,var(--bg1),var(--bg2));
+      color:var(--white);
+      user-select:none;
+      -webkit-user-select:none;
+      touch-action:none;
+    }
+
+    .grid,
+    .scanlines,
+    .vignette,
+    .flash,
+    .particles,
+    .bg-blobs,
+    .screens{
+      position:fixed; inset:0;
+      pointer-events:none;
+    }
+
+    .grid{
+      background-image:
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity:.5;
+    }
+
+    .scanlines{
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(0,0,0,0) 0px,
+        rgba(0,0,0,0) 2px,
+        rgba(0,0,0,.18) 4px
+      );
+      opacity:.16;
+      mix-blend-mode:multiply;
+    }
+
+    .vignette{
+      background:radial-gradient(circle at center, transparent 0 35%, rgba(0,0,0,.42) 76%, rgba(0,0,0,.66) 100%);
+    }
+
+    .bg-blobs .blob{
+      position:absolute;
+      border-radius:50%;
+      filter: blur(74px);
+      opacity:.13;
+      animation: blobDrift linear infinite;
+    }
+    .blob.b1{width:280px;height:280px;background:var(--cyan);left:4%;top:8%;animation-duration:14s;}
+    .blob.b2{width:320px;height:320px;background:var(--pink);right:6%;top:10%;animation-duration:18s;animation-delay:-5s;}
+    .blob.b3{width:260px;height:260px;background:var(--purple);left:22%;bottom:8%;animation-duration:16s;animation-delay:-2s;}
+    .blob.b4{width:340px;height:340px;background:var(--green);right:18%;bottom:0%;animation-duration:20s;animation-delay:-8s;}
+    .blob.b5{width:200px;height:200px;background:var(--orange);left:48%;top:16%;animation-duration:12s;animation-delay:-4s;}
+
+    @keyframes blobDrift{
+      0%{transform:translate(0,0) scale(1);}
+      33%{transform:translate(42px,-56px) scale(1.08);}
+      66%{transform:translate(-30px,34px) scale(.94);}
+      100%{transform:translate(0,0) scale(1);}
+    }
+
+    .app{
+      position:relative;
+      height:100%;
+      display:flex;
+      flex-direction:column;
+      z-index:2;
+    }
+
+    .hud{
+      height:var(--hudH);
+      padding:10px 16px;
+      display:grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap:12px;
+      align-items:center;
+      background:rgba(7,7,15,.88);
+      border-bottom:1px solid rgba(255,255,255,.08);
+      backdrop-filter: blur(10px);
+      position:relative;
+      z-index:5;
+    }
+
+    .hud-box{
+      min-height:52px;
+      border-radius:18px;
+      background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.08);
+      display:flex;
+      align-items:center;
+      gap:14px;
+      padding:10px 14px;
+      box-shadow: 0 0 18px rgba(255,255,255,.03);
+    }
+
+    .hud-left{justify-content:flex-start;}
+    .hud-center{justify-content:center; min-width:380px;}
+    .hud-right{justify-content:flex-end;}
+
+    .score-label,.timer-label,.remain-label{
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:1.3px;
+      color:var(--soft);
+      opacity:.9;
+    }
+    .score-value,.timer-value,.remain-value{
+      font-size:clamp(22px,3.2vw,34px);
+      line-height:1;
+      font-weight:700;
+    }
+    .score-value{color:var(--yellow);text-shadow:0 0 16px rgba(255,233,77,.55),0 0 28px rgba(255,233,77,.22);}
+    .timer-value{color:var(--cyan);text-shadow:0 0 16px rgba(0,229,255,.55),0 0 28px rgba(0,229,255,.22);}
+    .timer-value.warning{color:var(--orange);text-shadow:0 0 16px rgba(255,149,0,.55),0 0 28px rgba(255,149,0,.22);}
+    .timer-value.danger{color:var(--pink);text-shadow:0 0 16px rgba(255,45,120,.6),0 0 34px rgba(255,45,120,.25);animation:pulseText .8s infinite;}
+
+    @keyframes pulseText{
+      0%,100%{transform:scale(1);}
+      50%{transform:scale(1.06);}
+    }
+
+    .timer-bar-wrap{
+      width:min(34vw,380px);
+      height:20px;
+      border-radius:999px;
+      background:rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.08);
+      overflow:hidden;
+      box-shadow: inset 0 0 14px rgba(0,0,0,.55);
+    }
+    .timer-bar{
+      height:100%;
+      width:100%;
+      border-radius:999px;
+      background:linear-gradient(90deg,var(--green),var(--cyan));
+      box-shadow:0 0 18px rgba(0,229,255,.35);
+      transition:width .25s linear, background .25s linear;
+    }
+
+    .hud-btn{
+      pointer-events:auto;
+      border:none;
+      border-radius:999px;
+      font-family:inherit;
+      font-size:15px;
+      font-weight:700;
+      padding:10px 16px;
+      color:#091018;
+      cursor:pointer;
+      transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
+      box-shadow:0 0 18px rgba(255,255,255,.16);
+      white-space:nowrap;
+    }
+    .hud-btn:hover,.hud-btn:focus-visible{transform:translateY(-1px) scale(1.02);filter:brightness(1.03);outline:none;}
+    .hud-btn:active{transform:translateY(1px) scale(.98);}
+    .hint-btn{background:var(--yellow);}
+    .speak-btn{background:var(--cyan);}
+    .voice-toggle{background:var(--purple);color:white;}
+    .voice-toggle.off{background:#40456b;color:#d8dbef;}
+
+    .playfield{
+      flex:1;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:18px;
+      padding:18px;
+      min-height:0;
+      position:relative;
+    }
+
+    .zone{
+      position:relative;
+      border-radius:30px;
+      border:2px solid rgba(255,255,255,.11);
+      overflow:hidden;
+      padding:18px 18px 170px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:flex-start;
+      text-align:center;
+      transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+      min-height:0;
+    }
+
+    .zone.bad{
+      background:radial-gradient(circle at top, rgba(255,45,120,.26), rgba(255,45,120,.12) 50%, rgba(255,45,120,.06) 100%);
+      box-shadow:0 0 28px rgba(255,45,120,.12);
+    }
+    .zone.good{
+      background:radial-gradient(circle at top, rgba(170,255,0,.22), rgba(170,255,0,.10) 50%, rgba(170,255,0,.05) 100%);
+      box-shadow:0 0 28px rgba(170,255,0,.11);
+    }
+    .zone.active.bad{transform:scale(1.012);border-color:rgba(255,45,120,.74);box-shadow:0 0 34px rgba(255,45,120,.36);}
+    .zone.active.good{transform:scale(1.012);border-color:rgba(170,255,0,.74);box-shadow:0 0 34px rgba(170,255,0,.32);}
+
+    .zone-header{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      padding:14px 22px;
+      border-radius:22px;
+      background:rgba(255,255,255,.92);
+      color:#0b1020;
+      margin-top:4px;
+      box-shadow:0 10px 32px rgba(0,0,0,.22);
+      pointer-events:auto;
+    }
+    .zone-icon{
+      width:56px;height:56px;border-radius:50%;display:grid;place-items:center;
+      font-size:28px;font-weight:700;color:white;flex:0 0 auto;
+      box-shadow:0 0 18px rgba(255,255,255,.16);
+    }
+    .zone.bad .zone-icon{background:linear-gradient(135deg,#ff658f,var(--pink));}
+    .zone.good .zone-icon{background:linear-gradient(135deg,#c9ff63,var(--green)); color:#122005;}
+    .zone-title-wrap{display:flex;flex-direction:column;align-items:flex-start;text-align:left;}
+    .zone-title{font-size:clamp(26px,3vw,42px);line-height:.95;margin:0;font-weight:700;}
+    .zone-sub{font-size:clamp(14px,1.7vw,18px);color:#4a5575;margin-top:6px;}
+
+    .speak-pill{
+      pointer-events:auto;
+      border:none;
+      border-radius:999px;
+      padding:8px 12px;
+      font-weight:700;
+      font-family:inherit;
+      background:#e8ecff;
+      color:#1a2343;
+      cursor:pointer;
+      box-shadow:0 0 12px rgba(0,0,0,.12);
+      transition:transform .15s ease;
+    }
+    .speak-pill:hover,.speak-pill:focus-visible{transform:translateY(-1px);outline:none;}
+
+    .zone-body{
+      flex:1;
+      width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:16px 10px 0;
+      color:rgba(255,255,255,.9);
+    }
+    .zone-body p{
+      max-width:430px;
+      font-size:clamp(18px,2vw,24px);
+      line-height:1.3;
+      margin:0;
+      opacity:.92;
+      text-shadow:0 0 18px rgba(0,0,0,.32);
+    }
+    .zone-tag{
+      font-size:clamp(44px,7vw,86px);
+      opacity:.13;
+      position:absolute;
+      bottom:110px;
+      right:18px;
+      filter:drop-shadow(0 0 20px rgba(255,255,255,.08));
+    }
+
+    .deck-area{
+      position:absolute;
+      left:50%;
+      bottom:18px;
+      transform:translateX(-50%);
+      width:min(420px,56vw);
+      z-index:6;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:12px;
+      pointer-events:none;
+    }
+
+    .feedback-bar{
+      width:min(840px,84vw);
+      min-height:84px;
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap:12px;
+      align-items:center;
+      border-radius:24px;
+      padding:14px 18px;
+      background:linear-gradient(180deg, rgba(17,20,43,.95), rgba(9,11,24,.95));
+      border:1px solid rgba(255,255,255,.08);
+      box-shadow:0 0 24px rgba(0,0,0,.28), 0 0 18px rgba(0,229,255,.08);
+      pointer-events:auto;
+    }
+
+    .feedback-main{display:flex;flex-direction:column;gap:6px;min-width:0;}
+    .feedback-title{font-size:clamp(20px,2.4vw,30px);line-height:1;font-weight:700;margin:0;}
+    .feedback-text{font-size:clamp(15px,1.6vw,20px);line-height:1.28;color:#e8eeff;margin:0;}
+    .feedback-title.good{color:var(--green);text-shadow:0 0 16px rgba(170,255,0,.35);}
+    .feedback-title.bad{color:var(--pink);text-shadow:0 0 16px rgba(255,45,120,.38);}
+    .feedback-title.neutral{color:var(--cyan);text-shadow:0 0 16px rgba(0,229,255,.32);}
+
+    .card-controls{display:flex;gap:10px;pointer-events:auto;flex-wrap:wrap;justify-content:center;}
+    .sort-btn{
+      border:none;
+      border-radius:18px;
+      padding:12px 14px;
+      min-width:136px;
+      font-family:inherit;
+      font-size:16px;
+      font-weight:700;
+      cursor:pointer;
+      transition:transform .15s ease, box-shadow .15s ease;
+      box-shadow:0 0 18px rgba(255,255,255,.08);
+    }
+    .sort-btn:hover,.sort-btn:focus-visible{transform:translateY(-2px);outline:none;}
+    .sort-btn.bad{background:var(--pink);color:white;}
+    .sort-btn.good{background:var(--green);color:#142006;}
+
+    .deck-label{
+      font-size:15px;
+      color:var(--soft);
+      text-transform:uppercase;
+      letter-spacing:1.5px;
+      opacity:.95;
+      text-shadow:0 0 14px rgba(0,229,255,.18);
+    }
+
+    .deck-stack{
+      position:relative;
+      width:min(360px,70vw);
+      height:170px;
+      pointer-events:none;
+    }
+    .card-shadow{
+      position:absolute;
+      left:50%;
+      bottom:0;
+      width:100%;
+      height:100%;
+      border-radius:26px;
+      transform:translateX(-50%);
+      background:linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.06));
+      border:1px solid rgba(255,255,255,.11);
+      box-shadow:0 12px 30px rgba(0,0,0,.22);
+    }
+    .card-shadow.s1{transform:translateX(-50%) translateY(12px) scale(.97) rotate(-2deg);opacity:.45;}
+    .card-shadow.s2{transform:translateX(-50%) translateY(7px) scale(.985) rotate(2deg);opacity:.6;}
+    .card-shadow.s3{transform:translateX(-50%) translateY(3px) scale(.995) rotate(-1deg);opacity:.78;}
+
+    .card{
+      position:absolute;
+      left:50%;
+      bottom:0;
+      width:100%;
+      height:100%;
+      transform:translateX(-50%);
+      border-radius:26px;
+      background:linear-gradient(180deg, rgba(248,251,255,.97), rgba(234,239,255,.96));
+      color:#0d1428;
+      border:2px solid rgba(255,255,255,.28);
+      box-shadow:0 18px 40px rgba(0,0,0,.34), 0 0 24px rgba(0,229,255,.18);
+      padding:14px 16px 14px;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      pointer-events:auto;
+      touch-action:none;
+      cursor:grab;
+      transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+      will-change: transform;
+      overflow:hidden;
+    }
+    .card:before{
+      content:"";
+      position:absolute;inset:0;
+      background:linear-gradient(140deg, rgba(255,255,255,.9), rgba(255,255,255,.35) 18%, transparent 40%);
+      opacity:.55;
+      pointer-events:none;
+    }
+    .card.dragging{cursor:grabbing; box-shadow:0 28px 54px rgba(0,0,0,.42), 0 0 30px rgba(0,229,255,.32);}
+    .card.returning{animation:returnShake .62s ease;}
+    .card.correct-pop{animation:correctPop .35s ease;}
+    .card.fly-bad,.card.fly-good{transition: transform .45s cubic-bezier(.22,1,.36,1), opacity .45s ease; opacity:0;}
+
+    @keyframes returnShake{
+      0%{transform:translateX(-50%) translateY(0) rotate(0deg);} 
+      12%{transform:translateX(-50%) translateY(-8px) rotate(-5deg);} 
+      24%{transform:translateX(-50%) translateY(4px) rotate(5deg);} 
+      36%{transform:translateX(-50%) translateY(-3px) rotate(-3deg);} 
+      48%{transform:translateX(-50%) translateY(2px) rotate(2deg);} 
+      100%{transform:translateX(-50%) translateY(0) rotate(0deg);} 
+    }
+
+    @keyframes correctPop{
+      0%{transform:translateX(-50%) scale(1);} 
+      45%{transform:translateX(-50%) scale(1.04);} 
+      100%{transform:translateX(-50%) scale(1);} 
+    }
+
+    .card-top{display:flex;align-items:center;justify-content:space-between;gap:10px;position:relative;z-index:1;}
+    .difficulty{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:13px;
+      letter-spacing:.6px;
+      text-transform:uppercase;
+      font-weight:700;
+      color:#1a2343;
+      background:#e3ebff;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.06);
+    }
+    .difficulty.easy{background:#ddffe3;color:#0e551a;}
+    .difficulty.medium{background:#fff0c9;color:#6e4b00;}
+    .difficulty.hard{background:#ffd5e5;color:#73002f;}
+    .points-badge{
+      font-size:14px;
+      font-weight:700;
+      padding:8px 12px;
+      border-radius:999px;
+      background:#1f2647;
+      color:var(--yellow);
+      box-shadow:0 0 16px rgba(255,233,77,.14);
+    }
+
+    .card-text-wrap{display:grid;grid-template-columns: 1fr auto;gap:12px;align-items:center;position:relative;z-index:1;}
+    .card-text{
+      font-size:clamp(20px,2.1vw,30px);
+      line-height:1.22;
+      font-weight:600;
+      margin:0;
+      color:#0f1630;
+    }
+
+    .card-speak{
+      align-self:start;
+      border:none;
+      background:#d8f7ff;
+      color:#074757;
+      border-radius:18px;
+      padding:12px 14px;
+      font-size:18px;
+      cursor:pointer;
+      box-shadow:0 0 14px rgba(0,229,255,.18);
+    }
+    .card-speak:hover,.card-speak:focus-visible{outline:none;transform:translateY(-1px);}
+
+    .card-bottom{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      position:relative;
+      z-index:1;
+    }
+    .drag-tip{
+      font-size:14px;
+      color:#445075;
+      letter-spacing:.3px;
+    }
+    .hint-chip{
+      font-size:13px;
+      color:#563d00;
+      background:#fff1bf;
+      padding:8px 12px;
+      border-radius:999px;
+      font-weight:700;
+      max-width:50%;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .hint-chip.hidden{visibility:hidden;}
+
+    .particle{
+      position:absolute;
+      width:10px;height:10px;border-radius:50%;
+      pointer-events:none;
+      opacity:1;
+      animation:particleBurst .8s ease-out forwards;
+    }
+
+    @keyframes particleBurst{
+      from{transform:translate(0,0) scale(1);opacity:1;}
+      to{transform:translate(var(--dx),var(--dy)) scale(.2);opacity:0;}
+    }
+
+    .floater{
+      position:absolute;
+      font-size:clamp(24px,3vw,38px);
+      font-weight:700;
+      pointer-events:none;
+      text-shadow:0 0 18px currentColor;
+      animation:floatUp .9s ease-out forwards;
+      z-index:20;
+    }
+    @keyframes floatUp{
+      from{transform:translate(-50%,0) scale(.9);opacity:0;}
+      20%{opacity:1;}
+      to{transform:translate(-50%,-52px) scale(1.07);opacity:0;}
+    }
+
+    .flash{opacity:0;transition:opacity .14s ease;background:rgba(255,255,255,0);z-index:14;}
+    .flash.good{background:rgba(170,255,0,.17);}
+    .flash.bad{background:rgba(255,45,120,.19);}
+    .flash.show{opacity:1;}
+
+    .shake{animation:screenShake .32s linear 3;}
+    @keyframes screenShake{
+      0%{transform:translate(0,0);} 20%{transform:translate(-5px,4px);} 40%{transform:translate(6px,-4px);} 60%{transform:translate(-4px,2px);} 80%{transform:translate(4px,-2px);} 100%{transform:translate(0,0);}
+    }
+
+    .screens{z-index:20;display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto;}
+    .overlay{
+      pointer-events:auto;
+      width:min(980px,92vw);
+      max-height:min(92vh,900px);
+      overflow:auto;
+      -webkit-overflow-scrolling:touch;
+      border-radius:34px;
+      padding:24px 24px 22px;
+      background:linear-gradient(180deg, rgba(15,18,38,.92), rgba(8,10,20,.95));
+      border:1px solid rgba(255,255,255,.09);
+      box-shadow:0 22px 70px rgba(0,0,0,.48), 0 0 28px rgba(0,229,255,.11);
+      backdrop-filter: blur(12px);
+      display:none;
+    }
+    .overlay::-webkit-scrollbar{width:12px;}
+    .overlay::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:999px;}
+    .overlay.show{display:block;}
+
+    .title{
+      font-size:clamp(38px,6vw,78px);
+      line-height:.9;
+      margin:0 0 10px;
+      text-align:center;
+      text-shadow:0 0 18px rgba(255,255,255,.12), 0 0 28px rgba(0,229,255,.14);
+    }
+    .title .c1{color:var(--cyan);}
+    .title .c2{color:var(--yellow);}
+    .title .c3{color:var(--green);}
+
+    .overlay-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:start;}
+    .intro-copy{font-size:clamp(15px,1.75vw,21px);line-height:1.28;color:#ebefff;}
+    .intro-copy p{margin:0 0 10px;}
+    .mini-card-grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:14px;
+      margin:14px 0 0;
+    }
+    .mini-card{
+      border-radius:24px;
+      padding:16px 18px;
+      background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.07);
+      min-height:112px;
+    }
+    .mini-card h3{margin:0 0 8px;font-size:clamp(20px,2.2vw,28px);}
+    .mini-card p{margin:0;font-size:clamp(15px,1.6vw,18px);line-height:1.3;color:#e8eeff;}
+    .mini-card.bad h3{color:var(--pink);}
+    .mini-card.good h3{color:var(--green);}
+
+    .cta-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:16px;}
+    .big-btn{
+      border:none;
+      border-radius:999px;
+      padding:16px 28px;
+      font-family:inherit;
+      font-size:clamp(22px,3vw,32px);
+      font-weight:700;
+      cursor:pointer;
+      transition:transform .15s ease, box-shadow .15s ease;
+      box-shadow:0 0 30px rgba(255,255,255,.08);
+    }
+    .big-btn:hover,.big-btn:focus-visible{transform:translateY(-2px) scale(1.02);outline:none;}
+    .start-btn{background:var(--green);color:#0d1804;box-shadow:0 0 34px rgba(170,255,0,.34);}
+    .secondary-btn{background:var(--cyan);color:#07161b;box-shadow:0 0 34px rgba(0,229,255,.25);}
+    .ghost-btn{background:#363f70;color:#f6f8ff;}
+
+    .results-grid{
+      margin-top:18px;
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:14px;
+    }
+    .result-box{
+      border-radius:22px;
+      padding:16px;
+      background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.07);
+      text-align:center;
+    }
+    .result-box .k{font-size:12px;letter-spacing:1.3px;color:var(--soft);text-transform:uppercase;}
+    .result-box .v{font-size:clamp(28px,3vw,40px);font-weight:700;margin-top:6px;}
+
+    .grade{
+      font-size:clamp(26px,3vw,40px);
+      font-weight:700;
+      text-align:center;
+      margin:2px 0 0;
+    }
+    .end-sub{font-size:clamp(18px,1.8vw,22px);text-align:center;color:#e8eeff;margin:12px auto 0;max-width:760px;line-height:1.34;}
+
+    .hidden{display:none !important;}
+
+    @media (max-width: 980px){
+      .hud{grid-template-columns:1fr; height:auto; padding:10px; gap:8px;}
+      .hud-center{min-width:0;}
+      .playfield{padding:12px; gap:12px;}
+      .zone{padding:14px 12px 190px;}
+      .zone-title{font-size:28px;}
+      .zone-sub{font-size:14px;}
+      .zone-body p{font-size:18px;}
+      .deck-area{width:min(420px,92vw); bottom:10px;}
+      .feedback-bar{width:min(92vw,860px); grid-template-columns:1fr;}
+      .card-controls{justify-content:stretch;}
+      .sort-btn{flex:1 1 180px;}
+      .overlay-row{grid-template-columns:1fr;}
+      .results-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+    }
+
+    @media (max-width: 760px){
+      .playfield{grid-template-columns:1fr; padding:10px; gap:10px; overflow:auto;}
+      .zone{min-height:260px; padding-bottom:20px;}
+      .zone-tag{display:none;}
+      .deck-area{position:fixed; left:50%; transform:translateX(-50%); bottom:12px; width:min(420px,96vw);}      
+      .hud-box{flex-wrap:wrap; justify-content:center;}
+      .mini-card-grid{grid-template-columns:1fr;}
+      .results-grid{grid-template-columns:1fr 1fr;}
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-blobs" aria-hidden="true">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+    <div class="blob b3"></div>
+    <div class="blob b4"></div>
+    <div class="blob b5"></div>
+  </div>
+  <div class="grid" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+  <div class="particles" id="particles" aria-hidden="true"></div>
+  <div class="flash" id="flash" aria-hidden="true"></div>
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <div class="app" id="app">
+    <header class="hud">
+      <div class="hud-box hud-left">
+        <div>
+          <div class="score-label">Score</div>
+          <div class="score-value" id="scoreValue">0</div>
+        </div>
+        <div>
+          <div class="remain-label">Cards Left</div>
+          <div class="remain-value" id="cardsLeftValue">20</div>
+        </div>
+      </div>
+      <div class="hud-box hud-center">
+        <div class="timer-bar-wrap" aria-label="Time remaining"><div class="timer-bar" id="timerBar"></div></div>
+        <div>
+          <div class="timer-label">Time Left</div>
+          <div class="timer-value" id="timerValue">3:00</div>
+        </div>
+      </div>
+      <div class="hud-box hud-right">
+        <button class="hud-btn hint-btn" id="hintBtn" type="button">Hint</button>
+        <button class="hud-btn speak-btn" id="readCardBtn" type="button">Read Card</button>
+        <button class="hud-btn voice-toggle" id="voiceToggle" type="button" aria-pressed="true">Voice On</button>
+      </div>
+    </header>
+
+    <main class="playfield" id="playfield">
+      <section class="zone bad" id="zoneBad" data-zone="blame" aria-label="Blaming Others drop zone">
+        <div class="zone-header">
+          <div class="zone-icon">➜</div>
+          <div class="zone-title-wrap">
+            <h2 class="zone-title">Blaming Others</h2>
+            <div class="zone-sub">Pushing the problem away instead of owning it</div>
+          </div>
+          <button class="speak-pill zone-speak" type="button" data-speak="Blaming Others. Pushing the problem away instead of owning it.">🔊 Read</button>
+        </div>
+        <div class="zone-body">
+          <p>Look for excuses, finger-pointing, or statements that dodge responsibility.</p>
+        </div>
+        <div class="zone-tag">😤</div>
+      </section>
+
+      <section class="zone good" id="zoneGood" data-zone="own" aria-label="Owning It drop zone">
+        <div class="zone-header">
+          <div class="zone-icon">✓</div>
+          <div class="zone-title-wrap">
+            <h2 class="zone-title">Owning It</h2>
+            <div class="zone-sub">Taking responsibility and moving toward a solution</div>
+          </div>
+          <button class="speak-pill zone-speak" type="button" data-speak="Owning It. Taking responsibility and moving toward a solution.">🔊 Read</button>
+        </div>
+        <div class="zone-body">
+          <p>Look for honesty, accountability, and what the person will do next.</p>
+        </div>
+        <div class="zone-tag">🛡️</div>
+      </section>
+
+      <div class="deck-area">
+        <div class="feedback-bar" id="feedbackBar">
+          <div class="feedback-main">
+            <h3 class="feedback-title neutral" id="feedbackTitle">Get ready</h3>
+            <p class="feedback-text" id="feedbackText">Drag the top card to the correct side, or use the buttons under the card.</p>
+          </div>
+          <div class="card-controls">
+            <button class="sort-btn bad" id="sortBadBtn" type="button">Put in Blaming Others</button>
+            <button class="sort-btn good" id="sortGoodBtn" type="button">Put in Owning It</button>
+            <button class="speak-pill" id="readFeedbackBtn" type="button">🔊 Read Feedback</button>
+          </div>
+        </div>
+
+        <div class="deck-label" id="deckLabel">Scenario Deck</div>
+        <div class="deck-stack" id="deckStack" aria-live="polite">
+          <div class="card-shadow s1"></div>
+          <div class="card-shadow s2"></div>
+          <div class="card-shadow s3"></div>
+          <article class="card" id="card" tabindex="0" aria-label="Current scenario card">
+            <div class="card-top">
+              <div class="difficulty easy" id="difficultyBadge">Easy</div>
+              <div class="points-badge" id="pointsBadge">+10 pts</div>
+            </div>
+            <div class="card-text-wrap">
+              <p class="card-text" id="cardText">Loading…</p>
+              <button class="card-speak" id="cardSpeakBtn" type="button" aria-label="Read scenario out loud">🔊</button>
+            </div>
+            <div class="card-bottom">
+              <div class="drag-tip">Drag it left or right, or use the buttons below.</div>
+              <div class="hint-chip hidden" id="hintChip">Hint</div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="screens">
+    <section class="overlay show" id="startOverlay" aria-modal="true" role="dialog">
+      <h1 class="title"><span class="c1">Own It</span> <span class="c2">or</span><br><span class="c3">Blame It?</span></h1>
+      <div class="overlay-row">
+        <div class="intro-copy">
+          <p>This sorting game helps students spot the difference between excuse-making and real accountability.</p>
+          <p>There are 20 mixed-difficulty scenario cards. Students earn points for correct answers. The game ends when all cards are sorted or when the 3-minute timer runs out.</p>
+          <p>Wrong answers flash red, explain the mistake, and send the card back to the pile so the student can try again.</p>
+        </div>
+        <button class="secondary-btn big-btn" id="readIntroBtn" type="button">🔊 Read Directions</button>
+      </div>
+
+      <div class="mini-card-grid">
+        <div class="mini-card bad">
+          <h3>Blaming Others</h3>
+          <p>Excuses. Finger-pointing. Dodging responsibility. Waiting for someone else to fix it.</p>
+        </div>
+        <div class="mini-card good">
+          <h3>Owning It</h3>
+          <p>Honesty. Accountability. A clear next step. Solving the problem instead of hiding from it.</p>
+        </div>
+      </div>
+
+      <div class="cta-row">
+        <button class="big-btn start-btn" id="startBtn" type="button">Start Game</button>
+      </div>
+    </section>
+
+    <section class="overlay" id="endOverlay" aria-modal="true" role="dialog">
+      <h2 class="title"><span class="c1">Round</span> <span class="c2">Complete</span></h2>
+      <div class="grade" id="gradeText">Nice work</div>
+      <p class="end-sub" id="endSummary">You finished the deck.</p>
+      <div class="results-grid">
+        <div class="result-box"><div class="k">Final Score</div><div class="v" id="finalScore">0</div></div>
+        <div class="result-box"><div class="k">Correct</div><div class="v" id="finalCorrect">0</div></div>
+        <div class="result-box"><div class="k">Wrong Tries</div><div class="v" id="finalWrong">0</div></div>
+        <div class="result-box"><div class="k">Accuracy</div><div class="v" id="finalAccuracy">0%</div></div>
+      </div>
+      <div class="cta-row">
+        <button class="big-btn start-btn" id="replayBtn" type="button">Play Again</button>
+        <button class="big-btn secondary-btn" id="readResultsBtn" type="button">🔊 Read Results</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const scenarios = [
+      { text: "I forgot to bring my pencil, but I can borrow one and be ready tomorrow.", type: "own", difficulty: "easy", points: 10, hint: "The person admits the problem and gives a next step.", explain: "This is Owning It because the person admits what happened and focuses on fixing it." },
+      { text: "This is only late because nobody told me when it was due.", type: "blame", difficulty: "easy", points: 10, hint: "Listen for blame placed on another person.", explain: "This is Blaming Others because the person avoids responsibility and pushes the fault onto someone else." },
+      { text: "I missed that part of the directions. Can you show me, and I will fix it?", type: "own", difficulty: "easy", points: 10, hint: "It includes honesty and a plan to correct the mistake.", explain: "This is Owning It because the person admits the mistake and asks for help to fix it." },
+      { text: "It is not my fault this area is messy. Other people leave stuff here too.", type: "blame", difficulty: "easy", points: 10, hint: "The person focuses on what others did instead of their own part.", explain: "This is Blaming Others because the speaker uses other people's behavior as an excuse." },
+      { text: "My computer froze, so I let the teacher know right away and started the backup option.", type: "own", difficulty: "medium", points: 15, hint: "A real problem happened, but what matters is how the person responded.", explain: "This is Owning It because even though there was a problem, the person acted responsibly and solved it." },
+      { text: "I would have cleaned up, but my partner was supposed to remind me.", type: "blame", difficulty: "medium", points: 15, hint: "The person depends on someone else to carry their responsibility.", explain: "This is Blaming Others because the speaker avoids ownership by saying someone else should have managed them." },
+      { text: "I was rude when I answered. I need to apologize and say that better.", type: "own", difficulty: "medium", points: 15, hint: "Notice the admission and the repair step.", explain: "This is Owning It because the person recognizes the behavior and plans to repair the damage." },
+      { text: "The directions were confusing, so I just stopped working.", type: "blame", difficulty: "medium", points: 15, hint: "Confusion can be real, but what should happen next?", explain: "This is Blaming Others because the person uses the confusion as a reason to quit instead of asking for help or trying a solution." },
+      { text: "I was responsible for checking that folder, and I missed it. I will do it now.", type: "own", difficulty: "medium", points: 15, hint: "The speaker names their job and accepts it.", explain: "This is Owning It because the person clearly accepts responsibility and moves into action." },
+      { text: "Everyone else was talking too, so it makes sense that I got off task.", type: "blame", difficulty: "medium", points: 15, hint: "The person is excusing their behavior by pointing to the group.", explain: "This is Blaming Others because the speaker uses other people's choices to excuse their own." },
+      { text: "I should have checked my work before turning it in. That one is on me.", type: "own", difficulty: "easy", points: 10, hint: "Listen for honest ownership language.", explain: "This is Owning It because the person directly accepts responsibility without excuses." },
+      { text: "It would have been done if the printer had not jammed, so there was nothing I could do.", type: "blame", difficulty: "hard", points: 20, hint: "A problem happened, but does the speaker take any next step?", explain: "This is Blaming Others because the speaker uses the printer problem to avoid all responsibility instead of problem-solving." },
+      { text: "I forgot my part of the group project. I can text my team and finish it tonight.", type: "own", difficulty: "easy", points: 10, hint: "This statement includes both ownership and follow-through.", explain: "This is Owning It because the person admits the mistake and takes action to repair it." },
+      { text: "The teacher never came over, so I guess that is why mine is wrong.", type: "blame", difficulty: "medium", points: 15, hint: "The speaker is putting responsibility onto support they wanted but did not get.", explain: "This is Blaming Others because the person blames someone else instead of owning their learning and asking for help sooner." },
+      { text: "I got distracted and missed the instruction. I need to ask what the next step is.", type: "own", difficulty: "medium", points: 15, hint: "Notice that the speaker names their part and then asks for the next step.", explain: "This is Owning It because the person accepts their part and responds responsibly." },
+      { text: "I only snapped at him because he annoyed me first.", type: "blame", difficulty: "easy", points: 10, hint: "The speaker is treating another person's behavior like a permission slip.", explain: "This is Blaming Others because the person uses someone else's behavior to excuse their own poor choice." },
+      { text: "I misunderstood the schedule. That is on me, and I will write it down this time.", type: "own", difficulty: "hard", points: 20, hint: "The speaker admits a misunderstanding and changes the system for next time.", explain: "This is Owning It because the person accepts responsibility and creates a better plan." },
+      { text: "If my mom had woken me up earlier, I would not be late.", type: "blame", difficulty: "easy", points: 10, hint: "The speaker points to another person instead of their own responsibility.", explain: "This is Blaming Others because the person makes someone else responsible for their punctuality." },
+      { text: "The instructions changed, but I still should have checked before I guessed.", type: "own", difficulty: "hard", points: 20, hint: "A change happened, but the speaker still owns their choice.", explain: "This is Owning It because the person recognizes outside factors without using them as an excuse." },
+      { text: "That was not really cheating because my friend was already showing the answers.", type: "blame", difficulty: "hard", points: 20, hint: "This statement tries to make a bad choice sound less serious by pointing to someone else.", explain: "This is Blaming Others because the speaker minimizes their own choice and shifts focus to another person." }
+    ];
+
+    const GAME_TIME = 180;
+    const app = document.getElementById('app');
+    const cardEl = document.getElementById('card');
+    const cardTextEl = document.getElementById('cardText');
+    const difficultyBadge = document.getElementById('difficultyBadge');
+    const pointsBadge = document.getElementById('pointsBadge');
+    const hintChip = document.getElementById('hintChip');
+    const scoreValue = document.getElementById('scoreValue');
+    const cardsLeftValue = document.getElementById('cardsLeftValue');
+    const timerValue = document.getElementById('timerValue');
+    const timerBar = document.getElementById('timerBar');
+    const feedbackTitle = document.getElementById('feedbackTitle');
+    const feedbackText = document.getElementById('feedbackText');
+    const startOverlay = document.getElementById('startOverlay');
+    const endOverlay = document.getElementById('endOverlay');
+    const flash = document.getElementById('flash');
+    const deckLabel = document.getElementById('deckLabel');
+    const particles = document.getElementById('particles');
+    const zoneBad = document.getElementById('zoneBad');
+    const zoneGood = document.getElementById('zoneGood');
+    const finalScore = document.getElementById('finalScore');
+    const finalCorrect = document.getElementById('finalCorrect');
+    const finalWrong = document.getElementById('finalWrong');
+    const finalAccuracy = document.getElementById('finalAccuracy');
+    const gradeText = document.getElementById('gradeText');
+    const endSummary = document.getElementById('endSummary');
+    const voiceToggle = document.getElementById('voiceToggle');
+
+    let deck = [];
+    let currentIndex = 0;
+    let currentCard = null;
+    let timer = GAME_TIME;
+    let score = 0;
+    let correct = 0;
+    let wrong = 0;
+    let timerId = null;
+    let gameActive = false;
+    let hintShown = false;
+    let voiceOn = true;
+    let dragging = false;
+    let dragStart = null;
+    let dragOffset = { x: 0, y: 0 };
+    let currentTransform = { x: 0, y: 0, rot: 0 };
+
+    function shuffle(arr){
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function difficultyClass(diff){
+      if(diff === 'easy') return 'easy';
+      if(diff === 'medium') return 'medium';
+      return 'hard';
+    }
+
+    function difficultyLabel(diff){
+      if(diff === 'easy') return 'Easy • 1★';
+      if(diff === 'medium') return 'Medium • 2★';
+      return 'Hard • 3★';
+    }
+
+    function speak(text){
+      if(!voiceOn || !('speechSynthesis' in window) || !text) return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.rate = 0.97;
+      utter.pitch = 1;
+      utter.volume = 1;
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = voices.find(v => /Google US English|Samantha|Microsoft Aria|Jenny/i.test(v.name)) || voices.find(v => /en-US|en_US|English/i.test(v.lang || ''));
+      if(preferred) utter.voice = preferred;
+      window.speechSynthesis.speak(utter);
+    }
+
+    if('speechSynthesis' in window){
+      window.speechSynthesis.onvoiceschanged = () => {};
+    }
+
+    function setFeedback(title, text, type='neutral', read=false){
+      feedbackTitle.textContent = title;
+      feedbackText.textContent = text;
+      feedbackTitle.className = `feedback-title ${type}`;
+      if(read) speak(`${title}. ${text}`);
+    }
+
+    function formatTime(sec){
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m}:${String(s).padStart(2,'0')}`;
+    }
+
+    function updateHud(){
+      scoreValue.textContent = score;
+      cardsLeftValue.textContent = Math.max(deck.length - currentIndex, 0);
+      timerValue.textContent = formatTime(timer);
+      const pct = Math.max(timer / GAME_TIME, 0);
+      timerBar.style.width = `${pct * 100}%`;
+      if(timer <= 10){
+        timerValue.className = 'timer-value danger';
+        timerBar.style.background = 'linear-gradient(90deg, var(--orange), var(--pink))';
+      } else if(timer <= 20){
+        timerValue.className = 'timer-value warning';
+        timerBar.style.background = 'linear-gradient(90deg, var(--yellow), var(--orange))';
+      } else {
+        timerValue.className = 'timer-value';
+        timerBar.style.background = 'linear-gradient(90deg, var(--green), var(--cyan))';
+      }
+    }
+
+    function renderCard(){
+      currentCard = deck[currentIndex] || null;
+      if(!currentCard){
+        finishGame(true);
+        return;
+      }
+      hintShown = false;
+      hintChip.classList.add('hidden');
+      hintChip.textContent = currentCard.hint;
+      cardTextEl.textContent = currentCard.text;
+      difficultyBadge.textContent = difficultyLabel(currentCard.difficulty);
+      difficultyBadge.className = `difficulty ${difficultyClass(currentCard.difficulty)}`;
+      pointsBadge.textContent = `+${currentCard.points} pts`;
+      deckLabel.textContent = `Scenario Deck • ${deck.length - currentIndex} left`;
+      cardEl.style.opacity = '1';
+      resetCardPosition();
+      cardEl.classList.remove('hidden','returning','correct-pop','fly-bad','fly-good');
+      cardEl.setAttribute('aria-label', `Scenario: ${currentCard.text}`);
+      updateHud();
+    }
+
+    function resetCardPosition(){
+      currentTransform = { x: 0, y: 0, rot: 0 };
+      cardEl.style.transform = 'translateX(-50%) translateY(0px) rotate(0deg)';
+    }
+
+    function flashScreen(type){
+      flash.className = `flash ${type} show`;
+      setTimeout(() => flash.classList.remove('show'), 120);
+      if(type === 'bad') {
+        setTimeout(() => flash.classList.add('show'), 210);
+        setTimeout(() => flash.classList.remove('show'), 330);
+        setTimeout(() => flash.classList.add('show'), 430);
+        setTimeout(() => flash.classList.remove('show'), 560);
+      }
+    }
+
+    function burst(x, y, color, label=''){ 
+      const count = 22;
+      for(let i=0;i<count;i++){
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = `${x}px`;
+        p.style.top = `${y}px`;
+        p.style.background = color;
+        p.style.boxShadow = `0 0 16px ${color}`;
+        const dx = `${(Math.random() - .5) * 180}px`;
+        const dy = `${(Math.random() - .55) * 160}px`;
+        p.style.setProperty('--dx', dx);
+        p.style.setProperty('--dy', dy);
+        particles.appendChild(p);
+        setTimeout(() => p.remove(), 850);
+      }
+      if(label){
+        const f = document.createElement('div');
+        f.className = 'floater';
+        f.textContent = label;
+        f.style.left = `${x}px`;
+        f.style.top = `${y}px`;
+        f.style.color = color;
+        particles.appendChild(f);
+        setTimeout(() => f.remove(), 950);
+      }
+    }
+
+    function zoneCenter(zone){
+      const rect = zone.getBoundingClientRect();
+      return { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+    }
+
+    function animateToZone(zone, type){
+      const deckRect = document.getElementById('deckStack').getBoundingClientRect();
+      const centerStart = { x: deckRect.left + deckRect.width/2, y: deckRect.top + deckRect.height/2 };
+      const target = zoneCenter(zone);
+      const dx = target.x - centerStart.x;
+      const dy = target.y - centerStart.y;
+      cardEl.classList.add(type === 'own' ? 'fly-good' : 'fly-bad');
+      cardEl.style.transform = `translateX(calc(-50% + ${dx}px)) translateY(${dy}px) rotate(${type === 'own' ? 12 : -12}deg) scale(.88)`;
+    }
+
+    function showHint(){
+      if(!gameActive || !currentCard) return;
+      hintShown = true;
+      hintChip.classList.remove('hidden');
+      setFeedback('Hint', currentCard.hint, 'neutral', true);
+    }
+
+    function gradeFromScore(s){
+      if(s >= 285) return { text: 'Legendary Ownership Radar', color: 'var(--yellow)' };
+      if(s >= 240) return { text: 'Excellent Accountability Spotter', color: 'var(--green)' };
+      if(s >= 190) return { text: 'Strong Professional Thinking', color: 'var(--cyan)' };
+      if(s >= 140) return { text: 'Solid Work', color: 'var(--purple)' };
+      if(s >= 90) return { text: 'Good Start', color: 'var(--orange)' };
+      return { text: 'Keep Practicing', color: 'var(--pink)' };
+    }
+
+    function finishGame(clearedAll=false){
+      if(!gameActive) return;
+      gameActive = false;
+      clearInterval(timerId);
+      timerId = null;
+      window.speechSynthesis?.cancel();
+      const attempts = correct + wrong;
+      const acc = attempts ? Math.round((correct / attempts) * 100) : 0;
+      finalScore.textContent = score;
+      finalCorrect.textContent = correct;
+      finalWrong.textContent = wrong;
+      finalAccuracy.textContent = `${acc}%`;
+      const grade = gradeFromScore(score);
+      gradeText.textContent = grade.text;
+      gradeText.style.color = grade.color;
+      gradeText.style.textShadow = `0 0 18px ${grade.color}`;
+      endSummary.textContent = clearedAll
+        ? `You sorted every card${timer > 0 ? ` with ${formatTime(timer)} left` : ''}. Nice work.`
+        : `Time ran out. You still sorted ${correct} cards correctly. Keep building the habit of spotting ownership language.`;
+      endOverlay.classList.add('show');
+      const center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      burst(center.x, center.y, clearedAll ? '#aaff00' : '#00e5ff', clearedAll ? 'ROUND COMPLETE!' : 'TIME!');
+    }
+
+    function judge(choice){
+      if(!gameActive || !currentCard || dragging) return;
+      const isCorrect = choice === currentCard.type;
+      if(isCorrect){
+        score += currentCard.points;
+        correct += 1;
+        flashScreen('good');
+        const zone = choice === 'own' ? zoneGood : zoneBad;
+        animateToZone(zone, choice);
+        cardEl.classList.add('correct-pop');
+        const center = zoneCenter(zone);
+        burst(center.x, center.y, choice === 'own' ? '#aaff00' : '#ff2d78', `+${currentCard.points}`);
+        setFeedback('Correct', currentCard.explain, 'good', true);
+        updateHud();
+        setTimeout(() => {
+          currentIndex += 1;
+          renderCard();
+          if(currentIndex >= deck.length){
+            finishGame(true);
+          }
+        }, 470);
+      } else {
+        wrong += 1;
+        flashScreen('bad');
+        app.classList.add('shake');
+        setTimeout(() => app.classList.remove('shake'), 980);
+        cardEl.classList.add('returning');
+        setFeedback('Not quite', currentCard.explain, 'bad', true);
+        const zone = choice === 'own' ? zoneGood : zoneBad;
+        const center = zoneCenter(zone);
+        burst(center.x, center.y, '#ff2d78', 'TRY AGAIN');
+        updateHud();
+        setTimeout(() => {
+          cardEl.classList.remove('returning');
+          resetCardPosition();
+        }, 650);
+      }
+    }
+
+    function startGame(){
+      deck = shuffle(scenarios);
+      currentIndex = 0;
+      currentCard = null;
+      timer = GAME_TIME;
+      score = 0;
+      correct = 0;
+      wrong = 0;
+      gameActive = true;
+      startOverlay.classList.remove('show');
+      endOverlay.classList.remove('show');
+      setFeedback('Go', 'Sort the cards into the correct side as quickly and accurately as you can.', 'neutral', false);
+      renderCard();
+      updateHud();
+      clearInterval(timerId);
+      timerId = setInterval(() => {
+        if(!gameActive) return;
+        timer -= 1;
+        updateHud();
+        if(timer <= 0){
+          timer = 0;
+          updateHud();
+          finishGame(false);
+        }
+      }, 1000);
+    }
+
+    function handlePointerDown(e){
+      if(!gameActive || !currentCard) return;
+      dragging = true;
+      cardEl.classList.add('dragging');
+      dragStart = { x: e.clientX, y: e.clientY };
+      cardEl.setPointerCapture?.(e.pointerId);
+    }
+
+    function handlePointerMove(e){
+      if(!dragging || !gameActive) return;
+      const dx = e.clientX - dragStart.x;
+      const dy = e.clientY - dragStart.y;
+      const rot = Math.max(-16, Math.min(16, dx * 0.06));
+      currentTransform = { x: dx, y: dy, rot };
+      cardEl.style.transform = `translateX(calc(-50% + ${dx}px)) translateY(${dy}px) rotate(${rot}deg)`;
+      highlightZones(e.clientX, e.clientY);
+    }
+
+    function handlePointerUp(e){
+      if(!dragging) return;
+      dragging = false;
+      cardEl.classList.remove('dragging');
+      clearZoneHighlights();
+      const x = e.clientX;
+      const y = e.clientY;
+      const targetZone = getZoneAtPoint(x, y);
+      if(targetZone){
+        judge(targetZone.dataset.zone);
+      } else {
+        resetCardPosition();
+      }
+      cardEl.releasePointerCapture?.(e.pointerId);
+    }
+
+    function getZoneAtPoint(x, y){
+      const badRect = zoneBad.getBoundingClientRect();
+      const goodRect = zoneGood.getBoundingClientRect();
+      if(x >= badRect.left && x <= badRect.right && y >= badRect.top && y <= badRect.bottom) return zoneBad;
+      if(x >= goodRect.left && x <= goodRect.right && y >= goodRect.top && y <= goodRect.bottom) return zoneGood;
+      return null;
+    }
+
+    function highlightZones(x, y){
+      clearZoneHighlights();
+      const zone = getZoneAtPoint(x, y);
+      if(zone) zone.classList.add('active');
+    }
+
+    function clearZoneHighlights(){
+      zoneBad.classList.remove('active');
+      zoneGood.classList.remove('active');
+    }
+
+    cardEl.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+
+    cardEl.addEventListener('keydown', (e) => {
+      if(!gameActive) return;
+      if(e.key === 'ArrowLeft') judge('blame');
+      if(e.key === 'ArrowRight') judge('own');
+      if(e.key.toLowerCase() === 'h') showHint();
+      if(e.key.toLowerCase() === 'r') speak(currentCard?.text || '');
+    });
+
+    document.getElementById('sortBadBtn').addEventListener('click', () => judge('blame'));
+    document.getElementById('sortGoodBtn').addEventListener('click', () => judge('own'));
+    document.getElementById('hintBtn').addEventListener('click', showHint);
+    document.getElementById('readCardBtn').addEventListener('click', () => speak(currentCard?.text || ''));
+    document.getElementById('cardSpeakBtn').addEventListener('click', () => speak(currentCard?.text || ''));
+    document.getElementById('readFeedbackBtn').addEventListener('click', () => speak(`${feedbackTitle.textContent}. ${feedbackText.textContent}`));
+    document.getElementById('readIntroBtn').addEventListener('click', () => speak('Own It or Blame It. There are twenty mixed difficulty scenario cards. Drag each card to Blaming Others or Owning It. Wrong answers flash red, explain the mistake, and send the card back. You can also use hints and text to speech. The game ends when you sort every card or when three minutes runs out.'));
+    document.getElementById('readResultsBtn').addEventListener('click', () => speak(`${gradeText.textContent}. Final score ${score}. Correct answers ${correct}. Wrong tries ${wrong}. Accuracy ${finalAccuracy.textContent}. ${endSummary.textContent}`));
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('replayBtn').addEventListener('click', startGame);
+    voiceToggle.addEventListener('click', () => {
+      voiceOn = !voiceOn;
+      voiceToggle.classList.toggle('off', !voiceOn);
+      voiceToggle.textContent = voiceOn ? 'Voice On' : 'Voice Off';
+      voiceToggle.setAttribute('aria-pressed', String(voiceOn));
+      if(!voiceOn) window.speechSynthesis?.cancel();
+    });
+
+    document.querySelectorAll('.zone-speak').forEach(btn => btn.addEventListener('click', (e) => speak(e.currentTarget.dataset.speak)));
+
+    // Make main text blocks readable on click.
+    [
+      [document.querySelector('.zone.bad .zone-body p'), 'Look for excuses, finger pointing, or statements that dodge responsibility.'],
+      [document.querySelector('.zone.good .zone-body p'), 'Look for honesty, accountability, and what the person will do next.'],
+      [document.querySelector('.mini-card.bad'), 'Blaming Others. Excuses. Finger pointing. Dodging responsibility. Waiting for someone else to fix it.'],
+      [document.querySelector('.mini-card.good'), 'Owning It. Honesty. Accountability. A clear next step. Solving the problem instead of hiding from it.']
+    ].forEach(([el, text]) => {
+      if(el){
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', () => speak(text));
+      }
+    });
+
+    // Prevent scrolling gestures on touch devices.
+    document.addEventListener('touchmove', e => { if(gameActive) e.preventDefault(); }, { passive:false });
+
+    // Initial setup
+    updateHud();
+    renderCard();
+  </script>
+</body>
+</html>
